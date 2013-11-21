@@ -1,0 +1,3 @@
+easyuiplugins
+=============
+my easyui plugins
