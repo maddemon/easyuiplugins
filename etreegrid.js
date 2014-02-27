@@ -23,7 +23,7 @@
                 }
             },
             onClickCell: function (field, row) {
-                if (opts.editing && opts.editIndex >= 0) {
+                if (opts.editId === 0) {
                     if (!trySaveRow()) {
                         focusEditor(field);
                         return;
@@ -31,21 +31,22 @@
                 }
             },
             onAfterEdit: function (row, changes) {
-                opts.editIndex = undefined;
-                var url = row.isNewRecord ? opts.saveUrl : opts.updateUrl;
+                //opts.editId = undefined;
+                var url = row.isNewRecord ? opts.saveUrl : opts.updateUrl || opts.saveUrl;
                 if (url) {
                     $.post(url, row).done(function (json, statusText, xhr) {
-                        if (row.isNewRecord) {
-                            row.isNewRecord = false;
-                            //remove new
-                            $(target).treegrid("remove", row[opts.idField]);
-                            row[opts.idField] = json[opts.idField] || json.data[opts.idField];
-                            $(target).treegrid("append", { parent: row[opts.parentIdField], data: [row] });
-                            //append new
+                        console.log(opts.editId)
+                        if (opts.editId === 0) {
+                            json = eval("(" + json + ")");
+                            $(target).treegrid("remove", opts.editId);
+                            var data = json.data;
+                            console.log(data);
+                            $(target).treegrid("append", { parent: data[opts.parentIdField], data: [data] });
                         } else {
                             //refresh
                             $(target).treegrid("refresh", row[opts.idField]);
                         }
+                        opts.editId = undefined;
                     }).error(function (xhr) {
                         var result = eval("(" + xhr.responseText + ")");
                         $.messager.alert("失败", result.message || result, "warning");
@@ -57,7 +58,7 @@
                 if (opts.onAfterEdit) opts.onAfterEdit.call(target, row);
             },
             onCancelEdit: function (row) {
-                opts.editIndex = undefined;
+                opts.editId = undefined;
                 if (row.isNewRecord) {
                     $(this).treegrid("remove", row[opts.idField]);
                 }
@@ -72,26 +73,26 @@
         }));
 
         function trySaveRow() {
-            if (!$(target).treegrid("validateRow", opts.editIndex)) {
-                $(target).treegrid("select", opts.editIndex);
+            if (!$(target).treegrid("validateRow", opts.editId)) {
+                $(target).treegrid("select", opts.editId);
                 return false;
             }
-            if (opts.onBeforeSave.call(this, opts.editIndex) == false) {
+            if (opts.onBeforeSave.call(this, opts.editId) == false) {
                 setTimeout(function () {
-                    $(target).treegrid('select', opts.editIndex);
+                    $(target).treegrid('select', opts.editId);
                 }, 0);
                 return false;
             }
-            $(target).treegrid('endEdit', opts.editIndex);
+            $(target).treegrid('endEdit', opts.editId);
             return true;
         }
 
         function focusEditor(field) {
-            var editor = $(target).treegrid('getEditor', { index: opts.editIndex, field: field });
+            var editor = $(target).treegrid('getEditor', { id: opts.editId, field: field });
             if (editor) {
                 editor.target.focus();
             } else {
-                var editors = $(target).treegrid('getEditors', opts.editIndex);
+                var editors = $(target).treegrid('getEditors', opts.editId);
                 if (editors.length) {
                     editors[0].target.focus();
                 }
@@ -148,26 +149,26 @@
             return jq.each(function () {
                 var dg = $(this);
                 var opts = $.data(this, "etreegrid").options;
-                var index = row[opts.idField];
-                var editIndex = opts.editIndex;
-                if (editIndex != index) {
-                    if (dg.treegrid("validateRow", editIndex)) {
-                        if (editIndex >= 0) {
-                            if (opts.onBeforeSave.call(this, editIndex) == false) {
+                var rowId = row[opts.idField];
+                var editId = opts.editId;
+                if (editId != rowId) {
+                    if (dg.treegrid("validateRow", editId)) {
+                        if (editId === 0) {
+                            if (opts.onBeforeSave.call(this, editId) == false) {
                                 setTimeout(function () {
-                                    dg.treegrid("select", editIndex);
+                                    dg.treegrid("select", editId);
                                 }, 0);
                                 return;
                             }
                         }
-                        dg.treegrid("endEdit", editIndex);
-                        dg.treegrid("beginEdit", index);
-                        opts.editIndex = index;
-                        var node = dg.treegrid("find", index);
+                        dg.treegrid("endEdit", editId);
+                        dg.treegrid("beginEdit", rowId);
+                        opts.editId = rowId;
+                        var node = dg.treegrid("find", rowId);
                         opts.onEdit.call(this, node);
                     } else {
                         setTimeout(function () {
-                            dg.treegrid("select", editIndex);
+                            dg.treegrid("select", editId);
                         }, 0);
                     }
                 }
@@ -177,54 +178,60 @@
             return jq.each(function () {
                 var dg = $(this);
                 var opts = $.data(this, "etreegrid").options;
-                var editIndex = opts.editIndex;
-                if (opts.editIndex >= 0) {
-                    if (!dg.treegrid("validateRow", editIndex)) {
-                        dg.treegrid("select", editIndex);
+                var editId = opts.editId;
+                if (opts.editId === 0) {
+                    if (!dg.treegrid("validateRow", editId)) {
+                        dg.treegrid("select", editId);
                         return;
                     }
-                    if (opts.onBeforeSave.call(this, opts.editIndex) == false) {
+                    if (opts.onBeforeSave.call(this, opts.editId) == false) {
                         setTimeout(function () {
-                            dg.treegrid('select', opts.editIndex);
+                            dg.treegrid('select', opts.editId);
                         }, 0);
                         return;
                     }
-                    dg.treegrid('endEdit', opts.editIndex);
+                    dg.treegrid('endEdit', opts.editId);
+                } else {
+                    var selected = dg.treegrid("getSelected");
+                    var parentId = selected ? selected[opts.idField] : 0;
+                    var newRecord = {};
+                    newRecord[opts.idField] = 0;
+                    newRecord[opts.parentIdField] = parentId;
+                    console.log(newRecord)
+                    dg.treegrid("append", { parent: parentId, data: [newRecord] });
+                    if (parentId > 0) {
+                        var children = dg.treegrid("getChildren");
+                    }
+                    opts.editId = 0;
+                    dg.treegrid("beginEdit", opts.editId);
+                    dg.treegrid("select", opts.editId);
+
                 }
-                var selected = dg.treegrid("getSelected");
-                var parentId = selected ? selected[opts.idField] : 0;
-                var newRecord = { isNewRecord: true };
-                newRecord[opts.idField] = 0;
-                newRecord[opts.parentIdField] = parentId;
-                dg.treegrid("append", { parent: parentId, data: [newRecord] });
-                opts.editIndex = 0;
-                dg.treegrid("beginEdit", opts.editIndex);
-                dg.treegrid("select", opts.editIndex);
             });
         },
         saveRow: function (jq) {
             return jq.each(function () {
                 var dg = $(this);
                 var opts = $.data(this, 'etreegrid').options;
-                if (opts.editIndex >= 0) {
-                    if (!dg.treegrid("validateRow", opts.editIndex)) {
-                        dg.treegrid("select", opts.editIndex);
+                if (opts.editId === 0) {
+                    if (!dg.treegrid("validateRow", opts.editId)) {
+                        dg.treegrid("select", opts.editId);
                         return;
                     }
-                    if (opts.onBeforeSave.call(this, opts.editIndex) == false) {
+                    if (opts.onBeforeSave.call(this, opts.editId) == false) {
                         setTimeout(function () {
-                            dg.treegrid('select', opts.editIndex);
+                            dg.treegrid('select', opts.editId);
                         }, 0);
                         return;
                     }
-                    $(this).treegrid('endEdit', opts.editIndex);
+                    $(this).treegrid('endEdit', opts.editId);
                 }
             });
         },
         cancelRow: function (jq) {
             return jq.each(function () {
-                var index = $(this).etreegrid('options').editIndex;
-                $(this).treegrid('cancelEdit', index);
+                var rowId = $(this).etreegrid('options').editId;
+                $(this).treegrid('cancelEdit', rowId);
             });
         },
         removeRow: function (jq) {
@@ -260,7 +267,7 @@
 
     $.fn.etreegrid.defaults = $.extend({}, $.fn.treegrid.defaults, {
         editing: true,
-        editIndex: -1,
+        editId: undefined,
         messager: {},
 
         url: null,
