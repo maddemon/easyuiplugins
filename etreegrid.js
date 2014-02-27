@@ -23,7 +23,7 @@
                 }
             },
             onClickCell: function (field, row) {
-                if (opts.editId === 0) {
+                if (opts.editId >= 0) {
                     if (!trySaveRow()) {
                         focusEditor(field);
                         return;
@@ -35,7 +35,6 @@
                 var url = row.isNewRecord ? opts.saveUrl : opts.updateUrl || opts.saveUrl;
                 if (url) {
                     $.post(url, row).done(function (json, statusText, xhr) {
-                        console.log(opts.editId)
                         if (opts.editId === 0) {
                             json = eval("(" + json + ")");
                             $(target).treegrid("remove", opts.editId);
@@ -153,7 +152,7 @@
                 var editId = opts.editId;
                 if (editId != rowId) {
                     if (dg.treegrid("validateRow", editId)) {
-                        if (editId === 0) {
+                        if (editId >= 0) {
                             if (opts.onBeforeSave.call(this, editId) == false) {
                                 setTimeout(function () {
                                     dg.treegrid("select", editId);
@@ -179,7 +178,7 @@
                 var dg = $(this);
                 var opts = $.data(this, "etreegrid").options;
                 var editId = opts.editId;
-                if (opts.editId === 0) {
+                if (opts.editId >= 0) {
                     if (!dg.treegrid("validateRow", editId)) {
                         dg.treegrid("select", editId);
                         return;
@@ -213,7 +212,7 @@
             return jq.each(function () {
                 var dg = $(this);
                 var opts = $.data(this, 'etreegrid').options;
-                if (opts.editId === 0) {
+                if (opts.editId >= 0) {
                     if (!dg.treegrid("validateRow", opts.editId)) {
                         dg.treegrid("select", opts.editId);
                         return;
