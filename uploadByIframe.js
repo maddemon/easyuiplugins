@@ -1,8 +1,10 @@
-$.fn.upload = function (fileId, uploadUrl, callback, beforeUpload) {
-	var form = this;
-	$("#" + fileId).change(function () {
+$.fn.setUpload = function (uploadUrl, callback, beforeUpload) {
+	var file = $(this);
+	var form = file.parents("form");
+	var formAction = form.attr("action");
+	file.change(function () {
 		if (beforeUpload && !beforeUpload()) {
-			$(this).val('');
+			reset();
 			return;
 		}
 		var targetId = "iframe_upload" + Math.random();
@@ -12,16 +14,28 @@ $.fn.upload = function (fileId, uploadUrl, callback, beforeUpload) {
 			target: targetId,
 			action: uploadUrl,
 			enctype: "multipart/form-data",
-			encoding: "multipart/form-data",
 			method: "POST"
 
 		});
 		form.submit();
 		iframe.load(function () {
 			var content = $(this).contents().find("body").html();
-			callback(content);
+			try {
+				var json = eval("(" + content + ")");
+				callback(json);
+			} catch (ex) {
+				alert("上传出错" + ex);
+			}
 			iframe.remove();
 		});
-		$(this).val('');
+		reset();
 	});
+
+	function reset() {
+		file.replaceWith(file.clone());
+		form.removeAttr("target");
+		form.removeAttr("enctype")
+		form.attr("action", formAction);
+		$(file).setUpload(uploadUrl, callback, beforeUpload);
+	}
 };
